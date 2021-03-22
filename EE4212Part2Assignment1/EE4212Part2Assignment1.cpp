@@ -1,20 +1,25 @@
-// EE4212Part2Assignment1.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
 #include <iostream>
-
+using namespace cv;
+using namespace std;
 int main()
 {
-    std::cout << "Hello World!\n";
+    Mat SampleImage;
+    SampleImage = imread("texture1.jpg", IMREAD_COLOR); // Read the file
+    if (SampleImage.empty()) // Check for invalid input
+    {
+        cout << "Could not open or find the sample image" << std::endl;
+        return -1;
+    }
+    // Let synthesized image be 9 times the area of the sample image
+    Mat Image = Mat::zeros(3 * SampleImage.rows, 3 * SampleImage.cols, CV_8UC3);
+    // Copy sample image to upper left corner of synthesized image
+    SampleImage.copyTo(Image(Rect(0, 0, SampleImage.cols, SampleImage.rows)));
+    namedWindow("Display window", WINDOW_AUTOSIZE); // Create a window for display.
+    imshow("Display window", Image); // Show our image inside it.
+    waitKey(0); // Wait for a keystroke in the window
+    imwrite("result1.jpg", Image); // Save synthesized image
+    return 0;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
