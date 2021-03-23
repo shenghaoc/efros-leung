@@ -46,6 +46,7 @@ int sumNeighbors(Point p, Mat mask)
 	return sum(mask(Rect(neighbors_x, neighbors_y, neighbors_width, neighbors_height)))[0];
 }
 
+
 int main()
 {
 	Mat SampleImage;
@@ -64,20 +65,32 @@ int main()
 	Mat UnfilledNeighbors;
 	Mat element = getStructuringElement(MORPH_RECT, Size(3, 3));
 	Mat mask;
+	Mat GrayImage;
+	Mat GraySampleImage;
+	// Convert to grayscale for to avoid handling multiple channels
+	cvtColor(Image, GrayImage, COLOR_RGB2GRAY, 0);
+	cvtColor(SampleImage, GraySampleImage, COLOR_RGB2GRAY, 0);
 	// Binary mask ensures dilation ignores regions within already filled pixels
-	threshold(Image, mask, threshold_value, max_binary_value, threshold_type);
+	threshold(GrayImage, mask, threshold_value, max_binary_value, threshold_type);
 	dilate(mask, UnfilledNeighbors, element);
 	// Enlarged filled pixel region - filled pixel region = border formed by 
 	// pixels along border of filled pixel region
 	UnfilledNeighbors -= mask;
-	// Convert to grayscale for findNonZero() to work
-	cvtColor(UnfilledNeighbors, UnfilledNeighbors, COLOR_RGB2GRAY, 0);
 	vector<Point> PixelList; // Vector to be sorted by lambda expression
 	findNonZero(UnfilledNeighbors, PixelList);
 	random_shuffle(PixelList.begin(), PixelList.end()); // Randomly permute
+	// Sort by decreasing number of filled neighbor pixels
 	std::sort(PixelList.begin(), PixelList.end(), [mask](Point a, Point b) {
 		return sumNeighbors(a, mask) > sumNeighbors(b, mask);
 	});
+
+	// Need to convert to floating point number to multiply with Gaussian kernel
+	GrayImage.convertTo(GrayImage, CV_64F);
+	Mat Template = GrayImage(Rect(0, 0, 5, 5)); // Grab a window
+	Mat kernel_1d = getGaussianKernel(5, 1); // Get 1D Gaussian kernel
+	// Convolution same as multiplication by transverse in this case
+	Mat kernel_2d = kernel_1d * kernel_1d.t(); // Get 2D Gaussian kernel
+	int TotWeight = sum(Template.mul(kernel_2d))[0];
 
 	namedWindow("Display window", WINDOW_AUTOSIZE); // Create a window for display.
 	imshow("Display window", UnfilledNeighbors); // Show our image inside it.
