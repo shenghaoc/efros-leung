@@ -3,13 +3,48 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <iostream>
+#include <algorithm>
 using namespace cv;
 using namespace std;
 
 int scale = 3;
 int threshold_value = 0;
 int threshold_type = THRESH_BINARY;
-int const max_binary_value = 255;
+int const max_binary_value = 1;
+
+int sumNeighbors(Point p, Mat mask)
+{
+	int neighbors_x = p.x - 1;
+	int neighbors_y = p.y - 1;
+	int neighbors_width = 3;
+	int neighbors_height = 3;
+	// If either row or col is 0, position of top left is affected, need to adjust
+	// Otherwise just shrink the rect
+
+	if (p.x == 0)
+	{
+		neighbors_x = 0;
+		neighbors_width--;
+	}
+
+	if (p.y == 0)
+	{
+		neighbors_y = 0;
+		neighbors_height--;
+	}
+
+	if (p.x == mask.cols - 1)
+	{
+		neighbors_width--;
+	}
+
+	if (p.y == mask.rows - 1)
+	{
+		neighbors_height--;
+	}
+
+	return sum(mask(Rect(neighbors_x, neighbors_y, neighbors_width, neighbors_height)))[0];
+}
 
 int main()
 {
@@ -37,8 +72,12 @@ int main()
 	UnfilledNeighbors -= mask;
 	// Convert to grayscale for findNonZero() to work
 	cvtColor(UnfilledNeighbors, UnfilledNeighbors, COLOR_RGB2GRAY, 0);
-	Mat PixelList;
+	vector<Point> PixelList; // Vector to be sorted by lambda expression
 	findNonZero(UnfilledNeighbors, PixelList);
+	random_shuffle(PixelList.begin(), PixelList.end()); // Randomly permute
+	std::sort(PixelList.begin(), PixelList.end(), [mask](Point a, Point b) {
+		return sumNeighbors(a, mask) > sumNeighbors(b, mask);
+	});
 
 	namedWindow("Display window", WINDOW_AUTOSIZE); // Create a window for display.
 	imshow("Display window", UnfilledNeighbors); // Show our image inside it.
