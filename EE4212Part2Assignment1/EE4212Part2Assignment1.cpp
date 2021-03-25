@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 
 	istringstream arg(argv[1]);
 	int WindowSize;
-	if (!(arg >> WindowSize)) 
+	if (!(arg >> WindowSize))
 	{
 		cout << "Invalid number: " << argv[1] << endl;
 		return -1;
@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
 	// Convolution same as multiplication by transverse in this case
 	Mat kernel_2d = kernel_1d * kernel_1d.t(); // Get 2D Gaussian kernel
 
-	string folder("texture1*.jpg");
+	string folder("texture*.jpg");
 	vector<String> fileNames;
 	glob(folder, fileNames);
 
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 		cout << "Finished synthesizing " << outputName << endl;
 		namedWindow(outputName, WINDOW_AUTOSIZE); // Create a window for display.
 		imshow(outputName, Image); // Show our image inside it.
-		waitKey(0); // Wait for a keystroke in the window
+		// waitKey(0); // Wait for a keystroke in the window, uncomment to use
 		imwrite(outputName, Image); // Save synthesized image
 		destroyWindow(outputName);
 	}
@@ -234,10 +234,10 @@ void FindMatches(Mat GrayTemplate, Mat GraySampleImage, Mat ValidMask, Mat Gauss
 			{
 				for (int jj = 0; jj < GrayTemplate.rows; jj++)
 				{
-					if ((i - ii + WindowSize / 2 >= 0) && (i - ii + WindowSize / 2< GraySampleImage.cols)
-						&& (j - jj + WindowSize /2>= 0) && (j - jj + WindowSize /2 < GraySampleImage.rows))
+					if ((i - ii + WindowSize / 2 >= 0) && (i - ii + WindowSize / 2 < GraySampleImage.cols)
+						&& (j - jj + WindowSize / 2 >= 0) && (j - jj + WindowSize / 2 < GraySampleImage.rows))
 					{
-						pixVal = GraySampleImage.at<float>(Point(i - ii + WindowSize/2, j - jj + WindowSize/2));
+						pixVal = GraySampleImage.at<float>(Point(i - ii + WindowSize / 2, j - jj + WindowSize / 2));
 					}
 					else
 					{
