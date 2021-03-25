@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
 {
 	if (argc != 2)
 	{
-		cout << "Please enter an odd number as argument for the size of the neighborhood window" << endl;
+		cout << "Please enter an odd number as argument for the size of the neighborhood window!" << endl;
 		return -1;
 	}
 
@@ -46,10 +46,18 @@ int main(int argc, char* argv[])
 	if (!(arg >> WindowSize)) 
 	{
 		cout << "Invalid number: " << argv[1] << endl;
+		return -1;
 	}
 	else if (!arg.eof())
 	{
 		cout << "Trailing characters after number: " << argv[1] << endl;
+		return -1;
+	}
+
+	if (WindowSize % 2 == 0)
+	{
+		cout << "Not an odd number!" << endl;
+		return -1;
 	}
 
 	Mat kernel_1d = getGaussianKernel(WindowSize, WindowSize / sigmaDiv); // Get 1D Gaussian kernel
