@@ -8,14 +8,12 @@
 #include <algorithm>
 #include <random>
 #include <regex>
+#include <limits>
 
 using namespace cv;
 using namespace std;
 
 int scale = 2;
-int threshold_value = 0;
-int threshold_type = THRESH_BINARY;
-int const max_binary_value = 1;
 double ErrThreshold = 0.1;
 double MaxErrThreshold = 0.3;
 double sigmaDiv = 6.4;
@@ -37,7 +35,7 @@ int main(int argc, char* argv[])
 {
 	if (argc != 2)
 	{
-		cout << "Please enter an odd number as argument for the size of the neighborhood window!" << endl;
+		cerr << "Please enter an odd number as argument for the size of the neighborhood window!" << endl;
 		return -1;
 	}
 
@@ -45,22 +43,22 @@ int main(int argc, char* argv[])
 	int WindowSize;
 	if (!(arg >> WindowSize))
 	{
-		cout << "Invalid number: " << argv[1] << endl;
+		cerr << "Invalid number: " << argv[1] << endl;
 		return -1;
 	}
 	else if (!arg.eof())
 	{
-		cout << "Trailing characters after number: " << argv[1] << endl;
+		cerr << "Trailing characters after number: " << argv[1] << endl;
 		return -1;
 	}
 
 	if (WindowSize % 2 == 0)
 	{
-		cout << "Not an odd number!" << endl;
+		cerr << "Not an odd number!" << endl;
 		return -1;
 	}
 
-	Mat kernel_1d = getGaussianKernel(WindowSize, WindowSize / sigmaDiv); // Get 1D Gaussian kernel
+	Mat kernel_1d = getGaussianKernel(WindowSize, WindowSize / sigmaDiv, CV_32F); // Get 1D Gaussian kernel
 	// Convolution same as multiplication by transverse in this case
 	Mat kernel_2d = kernel_1d * kernel_1d.t(); // Get 2D Gaussian kernel
 
@@ -94,11 +92,10 @@ int main(int argc, char* argv[])
 void GrowImage(Mat SampleImage, Mat& Image, int WindowSize, Mat GaussMask)
 {
 	// Let synthesized image be scale^2 times the area of the sample image
-	Image = Mat::zeros(scale * SampleImage.rows, scale * SampleImage.cols, CV_8UC3);
 	// Copy sample image to upper left corner of synthesized image
-	SampleImage.copyTo(Image(Rect(Point(0, 0), SampleImage.size())));
+	copyMakeBorder(SampleImage, Image, 0, (scale - 1) * SampleImage.rows, 0, (scale - 1) * SampleImage.cols, BORDER_CONSTANT);
 
-	Mat mask = Mat::zeros(Image.size(), CV_64FC1);
+	Mat mask = Mat::zeros(Image.size(), CV_32FC1);
 	mask(Rect(Point(0, 0), SampleImage.size())).setTo(Scalar(1));
 
 
@@ -143,13 +140,15 @@ void GrowImage(Mat SampleImage, Mat& Image, int WindowSize, Mat GaussMask)
 		{
 			getNeighborParams(PixelList[i], mask, WindowSize, neighbors_x, neighbors_y, neighbors_width, neighbors_height, padded_x, padded_y);
 
-			Mat Template = Mat::zeros(Size(WindowSize, WindowSize), CV_32FC1);
-			GrayImage(Rect(Point(neighbors_x, neighbors_y), Size(neighbors_width, neighbors_height)))
-				.copyTo(Template(Rect(Point(padded_x, padded_y), Size(neighbors_width, neighbors_height)))); // Grab a window
+			Mat Template;
+			copyMakeBorder(GrayImage(Rect(Point(neighbors_x, neighbors_y), Size(neighbors_width, neighbors_height))), Template,
+				padded_y, WindowSize - padded_y - neighbors_height,
+				padded_x, WindowSize - padded_x - neighbors_width, BORDER_CONSTANT);
 
-			Mat ValidMask = Mat::zeros(Size(WindowSize, WindowSize), CV_64FC1);
-			mask(Rect(Point(neighbors_x, neighbors_y), Size(neighbors_width, neighbors_height)))
-				.copyTo(ValidMask(Rect(Point(padded_x, padded_y), Size(neighbors_width, neighbors_height))));
+			Mat ValidMask;
+			copyMakeBorder(mask(Rect(Point(neighbors_x, neighbors_y), Size(neighbors_width, neighbors_height))), ValidMask,
+				padded_y, WindowSize - padded_y - neighbors_height,
+				padded_x, WindowSize - padded_x - neighbors_width, BORDER_CONSTANT);
 
 			vector <double> errorList;
 			vector<Point> BestMatches;
@@ -161,7 +160,7 @@ void GrowImage(Mat SampleImage, Mat& Image, int WindowSize, Mat GaussMask)
 			{
 				SampleImage(Rect(BestMatch, Size(1, 1))).copyTo(Image(Rect(PixelList[i], Size(1, 1))));
 				GraySampleImage(Rect(BestMatch, Size(1, 1))).copyTo(GrayImage(Rect(PixelList[i], Size(1, 1))));
-				mask.at<double>(PixelList[i]) = 1;
+				mask.at<float>(PixelList[i]) = 1;
 				progress = 1;
 				numFilledPixels++;
 			}
@@ -222,47 +221,51 @@ double sumNeighbors(Point p, Mat mask, int WindowSize)
 void FindMatches(Mat GrayTemplate, Mat GraySampleImage, Mat ValidMask, Mat GaussMask, int WindowSize, vector<Point>& BestMatches, vector<double>& errorList)
 {
 	double TotWeight = sum(ValidMask.mul(GaussMask))[0];
+	Mat sqrtGaussMask;
+	sqrt(GaussMask, sqrtGaussMask); // TM_SQDIFF squares everything including mask
 
-	Mat SSD = Mat::zeros(GraySampleImage.rows, GraySampleImage.cols, CV_64FC1);
-	double dist = 0;
-	double pixVal = -1;
+	Mat SSD;
+
+	// matchTemplate() starts from top left, need to pad and start at equivalent of
+	// Point(-WindowSize / 2, -WindowSize / 2), end at equivalent of
+	// Point(GraySampleImage.cols - 1 + WindowSize / 2, GraySampleImage.rows - 1 + WindowSize / 2)
+	Mat paddedGraySampleImage;
+	copyMakeBorder(GraySampleImage, paddedGraySampleImage,
+		WindowSize / 2, WindowSize / 2, WindowSize / 2, WindowSize / 2,
+		BORDER_CONSTANT);
+
+	// Apparently the quadruple loop is similar to correlation (or convolution) and FFT can speed things up significantly
+	// OpenCV happens to have implemented template matching with squared differences as an option
+	// Hint from http://www.cs.umd.edu/~djacobs/CMSC733/PS2.pdf
+	// Check out the links below for the math behind this
+	// https://www.cs.umd.edu/~djacobs/CMSC426/Convolution.pdf
+	// https://www.ics.uci.edu/~fowlkes/class/cs216/hwk2/hwk2.pdf
+	matchTemplate(paddedGraySampleImage, GrayTemplate, SSD, TM_SQDIFF, ValidMask.mul(sqrtGaussMask) / TotWeight);
+
+
+	// FFT or float data type may have rounding errors
+	// Some 0s can be non-zero numbers with very large negative exponents
+	// Need to search manually instead of minMaxLoc
+	double min = numeric_limits<float>::max();
 	for (int i = 0; i < GraySampleImage.cols; i++)
 	{
 		for (int j = 0; j < GraySampleImage.rows; j++)
 		{
-			for (int ii = 0; ii < GrayTemplate.cols; ii++)
-			{
-				for (int jj = 0; jj < GrayTemplate.rows; jj++)
-				{
-					if ((i - ii + WindowSize / 2 >= 0) && (i - ii + WindowSize / 2 < GraySampleImage.cols)
-						&& (j - jj + WindowSize / 2 >= 0) && (j - jj + WindowSize / 2 < GraySampleImage.rows))
-					{
-						pixVal = GraySampleImage.at<float>(Point(i - ii + WindowSize / 2, j - jj + WindowSize / 2));
-					}
-					else
-					{
-						pixVal = 0;
-					}
-					dist = GrayTemplate.at<float>(Point(ii, jj)) - pixVal;
-					dist *= dist;
-					SSD.at<double>(Point(i, j)) += dist * ValidMask.at<double>(Point(ii, jj)) * GaussMask.at<double>(Point(ii, jj));
-				}
-			}
-			SSD.at<double>(Point(i, j)) /= TotWeight;
+			// min search has to check and ignore negative numbers
+			// Set to 0 to avoid repeated comparison
+			SSD.at<float>(Point(i, j)) = SSD.at<float>(Point(i, j)) < 0 ? 0 : SSD.at<float>(Point(i, j));
+			min = SSD.at<float>(Point(i, j)) < min ? SSD.at<float>(Point(i, j)) : min; // Check for min
 		}
 	}
 
-	double min = -1;
-	double max = -1;
-	minMaxLoc(SSD, &min, &max);
 	for (int i = 0; i < GraySampleImage.cols; i++)
 	{
 		for (int j = 0; j < GraySampleImage.rows; j++)
 		{
-			if (SSD.at<double>(Point(i, j)) <= min * (1 + ErrThreshold))
+			if (SSD.at<float>(Point(i, j)) <= min * (1 + ErrThreshold))
 			{
 				BestMatches.emplace_back(Point(i, j));
-				errorList.emplace_back(SSD.at<double>(Point(i, j)));
+				errorList.emplace_back(SSD.at<float>(Point(i, j)));
 			}
 		}
 	}
