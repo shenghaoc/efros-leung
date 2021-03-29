@@ -224,6 +224,9 @@ void FindMatches(Mat GrayTemplate, Mat GraySampleImage, Mat ValidMask, Mat Gauss
 	Mat sqrtGaussMask;
 	sqrt(GaussMask, sqrtGaussMask); // TM_SQDIFF squares everything including mask
 
+	flip(GrayTemplate, GrayTemplate, -1);
+	flip(ValidMask, ValidMask, -1);
+
 	Mat SSD;
 
 	// matchTemplate() starts from top left, need to pad and start at equivalent of
@@ -241,7 +244,6 @@ void FindMatches(Mat GrayTemplate, Mat GraySampleImage, Mat ValidMask, Mat Gauss
 	// https://www.cs.umd.edu/~djacobs/CMSC426/Convolution.pdf
 	// https://www.ics.uci.edu/~fowlkes/class/cs216/hwk2/hwk2.pdf
 	matchTemplate(paddedGraySampleImage, GrayTemplate, SSD, TM_SQDIFF, ValidMask.mul(sqrtGaussMask) / TotWeight);
-
 
 	// FFT or float data type may have rounding errors
 	// Some 0s can be non-zero numbers with very large negative exponents
