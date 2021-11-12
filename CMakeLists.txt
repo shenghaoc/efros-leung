@@ -1,13 +1,16 @@
 # cmake needs this line
 cmake_minimum_required(VERSION 3.1)
 
+# Use vcpkg as package manager
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake
+    CACHE STRING "Vcpkg toolchain file")
+
 # Define project name
 project(EE4212Part2Assignment1)
 
 # Find OpenCV, you may need to set OpenCV_DIR variable
 # to the absolute path to the directory containing OpenCVConfig.cmake file
 # via the command line or GUI
-set(OpenCV_DIR "$ENV{HOME}/opt/build_opencv")
 find_package(OpenCV REQUIRED)
 
 # If the package has been found, several variables will
