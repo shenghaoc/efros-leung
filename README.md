@@ -1,4 +1,5 @@
 # Non-parametric Texture Synthesis
+[![CMake](https://github.com/shenghaoc/efros-leung/actions/workflows/cmake.yml/badge.svg)](https://github.com/shenghaoc/efros-leung/actions/workflows/cmake.yml)
 
 ## Introduction
 
