@@ -80,11 +80,7 @@ int main(int argc, char* argv[])
 
 		String outputName = regex_replace(fileNames[i], regex("\\b(texture)([^ ]*)"), "synth$2");
 		cout << "Finished synthesizing " << outputName << endl;
-		namedWindow(outputName, WINDOW_AUTOSIZE); // Create a window for display.
-		imshow(outputName, Image); // Show our image inside it.
-		// waitKey(0); // Wait for a keystroke in the window, uncomment to use
 		imwrite(outputName, Image); // Save synthesized image
-		destroyWindow(outputName);
 	}
 	return 0;
 }
