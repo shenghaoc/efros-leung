@@ -68,6 +68,15 @@ jobs:
           # This is the name of the CMakePresets.json's configuration to build the project.
           buildPreset: 'ninja-multi-vcpkg'
           
+      - name: Tar files
+        run: tar -cvf ninja-multi-vcpkg.tar builds/ninja-multi-vcpkg
+        
+      - name: Archive production artifacts (tar)
+        uses: actions/upload-artifact@v2
+        with:
+          name: binaries ${{ matrix.platform }} (tar)
+          path: ninja-multi-vcpkg.tar
+    
       - name: Archive production artifacts
         uses: actions/upload-artifact@v2
         with:
