@@ -71,7 +71,7 @@ jobs:
       - name: Archive production artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: binaries
+          name: binaries ${{ matrix.platform }}
           path: builds/ninja-multi-vcpkg
     
     #env:
