@@ -67,6 +67,12 @@ jobs:
 
           # This is the name of the CMakePresets.json's configuration to build the project.
           buildPreset: 'ninja-multi-vcpkg'
+          
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: binaries
+          path: builds/ninja-multi-vcpkg
     
     #env:
     #  VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }} # [OPTIONAL] Define the vcpkg's triplet 
